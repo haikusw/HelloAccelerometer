@@ -21,6 +21,7 @@
     IBOutlet UILabel		*acc_raw_filtered_x_label;
     IBOutlet UILabel		*acc_raw_filtered_y_label;
     IBOutlet UILabel		*acc_raw_filtered_z_label;
+	
 	M3DVector3f				acc_raw_filtered;
 	M3DVector3f				acc_raw_spherical_filtered;
 	
@@ -75,10 +76,6 @@
 	NSMutableArray* _x_samples;
 	NSMutableArray* _y_samples;
 	NSMutableArray* _z_samples;
-	
-	NSMutableArray* _rho_samples;
-	NSMutableArray* _theta_samples;
-	NSMutableArray* _phi_samples;
 }
 
 - (void)initializeAccelerometer;

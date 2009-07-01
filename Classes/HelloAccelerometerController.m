@@ -10,7 +10,7 @@
 #import "AccelerometerSimulation.h"
 #import "HelloAccelerometerController.h"
 
-#define kAccelerometerFrequency		(75)
+#define kAccelerometerFrequency		(30)
 #define kFilteringFactor			(0.1)
 
 static BOOL kernalLookuptableHasBeenBuilt = NO;
@@ -26,15 +26,14 @@ float gaussianKernalDiscrete(int index);
 	_x_samples		= [[NSMutableArray alloc] init];
 	_y_samples		= [[NSMutableArray alloc] init];
 	_z_samples		= [[NSMutableArray alloc] init];
-	
-	_rho_samples	= [[NSMutableArray alloc] init];
-	_theta_samples	= [[NSMutableArray alloc] init];
-	_phi_samples	= [[NSMutableArray alloc] init];
 
 	kernalLookupTable = [[NSMutableArray alloc] init];
 	
 	[[UIAccelerometer sharedAccelerometer] setUpdateInterval:(1.0 / kAccelerometerFrequency)];
 	[[UIAccelerometer sharedAccelerometer] setDelegate:self];
+	
+	// !!!!!!!!!!!!!!! DISABLE IDLE SCREEN !!!!!!!!!!!!!!!!!!
+	[UIApplication sharedApplication].idleTimerDisabled = YES;
 	
 }
 
@@ -153,7 +152,7 @@ float gaussianKernal(float in) {
 // UIAccelerometerDelegate method
 - (void)accelerometer:(UIAccelerometer*)accelerometer didAccelerate:(UIAcceleration*)acceleration {
 	
-	// most current sample
+	// most current raw sample
 	NSNumber *xx = [NSNumber numberWithFloat:acceleration.x];
 	NSNumber *yy = [NSNumber numberWithFloat:acceleration.y];
 	NSNumber *zz = [NSNumber numberWithFloat:acceleration.z];
@@ -161,25 +160,13 @@ float gaussianKernal(float in) {
 	M3DVector3f vec;
 	m3dLoadVector3f(vec, [xx floatValue], [yy floatValue], [zz floatValue]);
 	
-	M3DVector3f sph;
-	TIESpherical(vec, sph);
-	
-	NSNumber *rho	= [NSNumber numberWithFloat:sph[0]];
-	NSNumber *theta	= [NSNumber numberWithFloat:sph[1]];
-	NSNumber *phi	= [NSNumber numberWithFloat:sph[2]];
-	
-	// Accumulate samples
+	// Accumulate raw samples
 	if ([_x_samples count] < gaussianKernalFootprint) {
 		
 		// Enqueue
 		[_x_samples addObject:xx];
 		[_y_samples addObject:yy];
 		[_z_samples addObject:zz];
-		
-		[_rho_samples	addObject:rho];
-		[_theta_samples addObject:theta];
-		[_phi_samples	addObject:phi];
-		
 		
 		return;
 	}
@@ -203,7 +190,6 @@ float gaussianKernal(float in) {
 	
 	// :::::::::::::::::::::::::: Gaussian filter :::::::::::::::::::::::::: 	
 	m3dLoadVector3f(vec,	0.0, 0.0, 0.0);
-	m3dLoadVector3f(sph,	0.0, 0.0, 0.0);
 	for (int i = 0; i < gaussianKernalFootprint; i++) {
 		
 		float wgt = gaussianKernalDiscrete(i);
@@ -211,13 +197,12 @@ float gaussianKernal(float in) {
 		vec[0] += wgt * [[_x_samples objectAtIndex:i] floatValue];
 		vec[1] += wgt * [[_y_samples objectAtIndex:i] floatValue];
 		vec[2] += wgt * [[_z_samples objectAtIndex:i] floatValue];
-		
-		sph[0] += wgt * [[_rho_samples	 objectAtIndex:i]	floatValue];
-		sph[1] += wgt * [[_theta_samples objectAtIndex:i]	floatValue];
-		sph[2] += wgt * [[_phi_samples	 objectAtIndex:i]	floatValue];
-		
+
 	}
-	
+
+	M3DVector3f sph;
+	m3dLoadVector3f(sph, 0.0, 0.0, 0.0);
+	TIESpherical(vec, sph);
 	
 	// :::::::::::::::::::::::::: Median filter :::::::::::::::::::::::::: 
 	//	m3dLoadVector3f(g, 0.0, 0.0, 0.0);
@@ -239,21 +224,10 @@ float gaussianKernal(float in) {
 	[_y_samples removeObjectAtIndex:0];
 	[_z_samples removeObjectAtIndex:0];
 	
-	[_rho_samples	removeObjectAtIndex:0];
-	[_theta_samples	removeObjectAtIndex:0];
-	[_phi_samples	removeObjectAtIndex:0];
-	
-	
 	// Enqueue most current sample
 	[_x_samples addObject:xx];
 	[_y_samples addObject:yy];
 	[_z_samples addObject:zz];
-	
-	[_rho_samples	addObject:rho];
-	[_theta_samples	addObject:theta];
-	[_phi_samples	addObject:phi];
-	
-	
 	
 	// We don't care about the magnitude of G, just it's direction
 //	m3dNormalizeVectorf(vec);
@@ -272,32 +246,28 @@ float gaussianKernal(float in) {
 	}
 	
 	
-	float deltaTheta	= fabsf(m3dRadToDeg(sph[1] - gSphericalPast[1]));
-	float deltaPhi		= fabsf(m3dRadToDeg(sph[2] - gSphericalPast[2]));
+	float dotProduct	= m3dDotProductf(vec, gPast);	
+	float angleBetween	= m3dRadToDeg( acosf( dotProduct / ( m3dGetVectorLengthf(vec) * m3dGetVectorLengthf(gPast) ) ) );
+//	NSLog(@"Angle between g(%f %f %f) and gPast(%f %f %f) is %f.", vec[0], vec[1], vec[2], gPast[0], gPast[1], gPast[2], angleBetween);
 	
-//	NSLog(@"dTheta %.2f dPhi %.2f", deltaTheta, deltaPhi);
+//	float deltaTheta	= fabsf(m3dRadToDeg(sph[1] - gSphericalPast[1]));
+//	float deltaPhi		= fabsf(m3dRadToDeg(sph[2] - gSphericalPast[2]));
 	
 	// Only look at delta phi! Delta theta is highly unstable since it is f(x, y)
 	// and x and y are tiny and unstable when the device is flat on a desk.
-	if (deltaPhi < 1.0) {
+
+	static float threshold = 1.0;
+	if (angleBetween < threshold) {
 		
+//		NSLog(@"angleBetween(%f) < threshold(%f) ... BAILING", angleBetween, threshold);
 		return;
+	} else {
+//		NSLog(@"angleBetween(%f) < threshold(%f) ... PROCEEDING", angleBetween, threshold);
 	}
+
 	
 	m3dCopyVector3f(g,			vec);
 	m3dCopyVector3f(gSpherical,	sph);
-	
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 	float dx = fabsf(g[0] - gPast[0]);
 	float dy = fabsf(g[1] - gPast[1]);
@@ -334,50 +304,52 @@ float gaussianKernal(float in) {
 	
 	m3dCrossProductf(z, x, y);	
 
+
 	
-	// build the camera transform matrix from the r column vectors: n, o, a, p
-	m3dLoadIdentity44f(_cameraTransform);
-	MatrixElement(_cameraTransform, 0, 0) = x[0];
-	MatrixElement(_cameraTransform, 1, 0) = x[1];
-	MatrixElement(_cameraTransform, 2, 0) = x[2];
+//	// The computed frame is the OpenGL Model View transformation. Store it away
+//	m3dLoadIdentity44f(_openGLCameraInverseTransform);
+//	MatrixElement(_openGLCameraInverseTransform, 0, 0) = x[0];
+//	MatrixElement(_openGLCameraInverseTransform, 1, 0) = x[1];
+//	MatrixElement(_openGLCameraInverseTransform, 2, 0) = x[2];
+//	
+//	MatrixElement(_openGLCameraInverseTransform, 0, 1) = y[0];
+//	MatrixElement(_openGLCameraInverseTransform, 1, 1) = y[1];
+//	MatrixElement(_openGLCameraInverseTransform, 2, 1) = y[2];
+//	
+//	MatrixElement(_openGLCameraInverseTransform, 0, 2) = z[0];
+//	MatrixElement(_openGLCameraInverseTransform, 1, 2) = z[1];
+//	MatrixElement(_openGLCameraInverseTransform, 2, 2) = z[2];
+//	
+//	// Build the upper 3x3 of the OpenGL style "view" transformation from the transpose of the camera orientation
+//	// This is the inversion process. Since these 3x3 matrices are orthonormal a transpose is sufficient to invert
+//	m3dLoadIdentity44f(_cameraTransform);	
+//	for (int i = 0; i < 3; i++) {
+//		for (int j = 0; j < 3; j++) {
+//			MatrixElement(_cameraTransform, i, j) = MatrixElement(_openGLCameraInverseTransform, j, i);
+//		}
+//	}
+
 	
-	MatrixElement(_cameraTransform, 0, 1) = y[0];
-	MatrixElement(_cameraTransform, 1, 1) = y[1];
-	MatrixElement(_cameraTransform, 2, 1) = y[2];
 	
-	MatrixElement(_cameraTransform, 0, 2) = z[0];
-	MatrixElement(_cameraTransform, 1, 2) = z[1];
-	MatrixElement(_cameraTransform, 2, 2) = z[2];
 	
-	// Build the upper 3x3 of the OpenGL style "view" transformation from the transpose of the camera orientation
-	// This is the inversion process. Since these 3x3 matrices are orthonormal a transpose is sufficient to invert
-	m3dLoadIdentity44f(_openGLCameraInverseTransform);	
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			MatrixElement(_openGLCameraInverseTransform, i, j) = MatrixElement(_cameraTransform, j, i);
-		}
-	}
+	
+	
+	nx_label.text	= [NSString stringWithFormat:@"%.2f", x[0]];
+	ny_label.text	= [NSString stringWithFormat:@"%.2f", x[1]];
+	nz_label.text	= [NSString stringWithFormat:@"%.2f", x[2]];
+	
+	ox_label.text	= [NSString stringWithFormat:@"%.2f", y[0]];
+	oy_label.text	= [NSString stringWithFormat:@"%.2f", y[1]];
+	oz_label.text	= [NSString stringWithFormat:@"%.2f", y[2]];
+	
+	ax_label.text	= [NSString stringWithFormat:@"%.2f", z[0]];
+	ay_label.text	= [NSString stringWithFormat:@"%.2f", z[1]];
+	az_label.text	= [NSString stringWithFormat:@"%.2f", z[2]];
+	
+    rho_label.text			= [NSString stringWithFormat:@"%.2f",	sph[0]				];
+    theta_label.text		= [NSString stringWithFormat:@"%.2f",	m3dRadToDeg(sph[1])	];
+    phi_label.text			= [NSString stringWithFormat:@"%.2f",	m3dRadToDeg(sph[2])	];
 		
-	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 0, 0)];
-	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 1, 0)];
-	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 2, 0)];
-	
-	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 0, 1)];
-	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 1, 1)];
-	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 2, 1)];
-	
-	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 0, 2)];
-	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 1, 2)];
-	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(_cameraTransform, 2, 2)];
-			
-    g_x_label.text			= [NSString stringWithFormat:@"%.2f", g[0]];
-    g_y_label.text			= [NSString stringWithFormat:@"%.2f", g[1]];
-    g_z_label.text			= [NSString stringWithFormat:@"%.2f", g[2]];
-	
-    rho_label.text			= [NSString stringWithFormat:@"%.2f",	sph[0]    ];
-	delta_theta_label.text	= [NSString stringWithFormat:@"%.2f",	deltaTheta];
-    delta_phi_label.text	= [NSString stringWithFormat:@"%.2f",	deltaPhi  ];
-	
 	
 	
 
