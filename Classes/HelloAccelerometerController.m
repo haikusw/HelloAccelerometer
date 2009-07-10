@@ -388,38 +388,44 @@ float gaussianKernal(float in) {
 		// For now, only handle the case where the device is facing up.
 		if (g[a] < 0.0) {
 			
-			M3DVector3f resultOfCross;
+//			M3DVector3f resultOfCross;
 			
 			// Handle the case where have calculated the x-axis (cDelta == 0) and the z-component of the G vector is dominant axis (a == 2).
 			if (cDelta == 0 && a == 2) {
 				
-				m3dCrossProductf(resultOfCross, axis, g);			
-				m3dNormalizeVectorf(resultOfCross);
+				m3dCopyVector3f(exe, axis);
+
+				m3dCrossProductf(wye, exe, g);			
+				m3dNormalizeVectorf(wye);
 				
-				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
-					  axisName, 
-					  axis[0], axis[1], axis[2], 
-					  g[0], g[1], g[2],
-					  resultOfCross[0], resultOfCross[1], resultOfCross[2]
-					  );
+//				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
+//					  axisName, 
+//					  exe[0], exe[1], exe[2], 
+//					  g[0], g[1], g[2],
+//					  wye[0], wye[1], wye[2]
+//					  );
 				
 			} // if (cDelta == 0 && a == 2)
 			
 			// Handle the case where have calculated the y-axis (cDelta == 1) and the z-component of the G vector is dominant axis (a == 2).
 			if (cDelta == 1 && a == 2) {
 				
-				m3dCrossProductf(resultOfCross, g, axis);			
-				m3dNormalizeVectorf(resultOfCross);
+				m3dCopyVector3f(wye, axis);
 				
-				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
-					  axisName, 
-					  axis[0], axis[1], axis[2], 
-					  g[0], g[1], g[2],
-					  resultOfCross[0], resultOfCross[1], resultOfCross[2]
-					  );
+				m3dCrossProductf(exe, g, wye);			
+				m3dNormalizeVectorf(exe);
+				
+//				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
+//					  axisName, 
+//					  wye[0], wye[1], wye[2], 
+//					  g[0], g[1], g[2],
+//					  exe[0], exe[1], exe[2]
+//					  );
 				
 			} // if (cDelta == 1 && a == 2)
-			
+
+			m3dCrossProductf(zee, exe, wye);			
+
 		}
 	
 		
