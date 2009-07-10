@@ -10,6 +10,12 @@
 #import "AccelerometerSimulation.h"
 #import "HelloAccelerometerController.h"
 
+
+static M3DVector3f _compensationVector = { -0.06, 0.14, 0.08 };
+//static M3DVector3f _xAxis = { 1.0, 0.0, 0.0 };
+//static M3DVector3f _yAxis = { 0.0, 1.0, 0.0 };
+//static M3DVector3f _zAxis = { 0.0, 0.0, 1.0 };
+
 #define kAccelerometerFrequency		(30)
 #define kFilteringFactor			(0.1)
 
@@ -20,6 +26,111 @@ float gaussianKernal(float in);
 float gaussianKernalDiscrete(int index);
 
 @implementation HelloAccelerometerController
+
++(NSString*)signPrint:(float)f {
+	
+	if (f < 0.0) return @"-";
+	
+	return @"+";
+}
+
++ (NSString*)signedAxisName:(M3DVector3f)vector axis:(NSUInteger)axis {
+	
+	NSString* result = nil;
+	
+	switch (axis) {
+			
+		case 0:
+			result = @"+X";
+			if (vector[axis] < 0.0) {
+				result = @"-X";
+			}
+			break;
+		case 1:
+			result = @"+Y";
+			if (vector[axis] < 0.0) {
+				result = @"-Y";
+			}
+			break;
+		case 2:
+			result = @"+Z";
+			if (vector[axis] < 0.0) {
+				result = @"-Z";
+			}
+			break;
+		default:
+			result = @"Huh?";
+	}
+	
+	return result;
+};
+
++(float)sign:(float)f {
+	
+	if (f < 0.0f) return -1.0f;
+	
+	return 1.0f;
+}
+
++ (void)dominantAxis:(M3DVector3f)vector maximum:(NSUInteger*)maximum middle:(NSUInteger*)middle minimum:(NSUInteger*)minimum {
+
+	M3DVector3f fabulous;
+	m3dLoadVector3f(fabulous, fabsf(vector[0]), fabsf(vector[1]), fabsf(vector[2]));
+	
+	
+	if (fabulous[0] > fabulous[1] && fabulous[0] > fabulous[2]) {
+		
+		*maximum = 0;
+		
+		if (fabulous[1] > fabulous[2]) {
+			*middle		= 1;
+			*minimum	= 2;
+		} else {
+			*middle		= 2;
+			*minimum	= 1;
+		}
+		
+	}
+	
+	if (fabulous[1] > fabulous[2] && fabulous[1] > fabulous[0]) {
+		
+		*maximum = 1;
+		
+		if (fabulous[2] > fabulous[0]) {
+			*middle		= 2;
+			*minimum	= 0;
+		} else {
+			*middle		= 0;
+			*minimum	= 2;
+		}
+		
+	}
+	
+	if (fabulous[2] > fabulous[0] && fabulous[2] > fabulous[1]) {
+		
+		*maximum = 2;
+		
+		if (fabulous[0] > fabulous[1]) {
+			*middle		= 0;
+			*minimum	= 1;
+		} else {
+			*middle		= 1;
+			*minimum	= 0;
+		}
+		
+	}
+	
+}
+
++ (int)nextAxis:(int)axis {
+	
+	int next;
+	
+	next = (axis + 1) % 3;
+	
+	return next;
+}
+
 
 - (void)initializeAccelerometer {
 	
@@ -194,117 +305,200 @@ float gaussianKernal(float in) {
 	[_y_samples addObject:yy];
 	[_z_samples addObject:zz];
 	
+
+	
+	// Add calibration compensation
+	m3dAddVectors2f(vec, vec, _compensationVector);
+
+	
+	
 	// Do nothing until we have a past value of "G"
 	static BOOL gPastSet = NO;
 	if (gPastSet == NO) {
 		
-		m3dCopyVector3f(gPast, vec);		
+		m3dCopyVector3f(gPast, vec);
 		gPastSet = YES;
 		
 		return;
 	}
-	
+
 	
 	// Establish a threshold below which we discard samples. We need a large enough delta (ie, dot product) to compute a valid
 	// coordinate frame
 	float dotProduct	= m3dDotProductf(vec, gPast);	
 	float angleBetween	= m3dRadToDeg( acosf( dotProduct / ( m3dGetVectorLengthf(vec) * m3dGetVectorLengthf(gPast) ) ) );
-//	NSLog(@"Angle between g(%f %f %f) and gPast(%f %f %f) is %f.", vec[0], vec[1], vec[2], gPast[0], gPast[1], gPast[2], angleBetween);
-		
-	static float threshold = 1.0;
+	
+	static float threshold = 1.0/0.5;
 	if (angleBetween < threshold) {
 		
-//		NSLog(@"angleBetween(%f) < threshold(%f) ... BAILING", angleBetween, threshold);
 		return;
-	} else {
-//		NSLog(@"angleBetween(%f) < threshold(%f) ... PROCEEDING", angleBetween, threshold);
 	}
+
 	
+	
+	
+	// Accept vec as current value of g
 	m3dCopyVector3f(g, vec);
-	TIESpherical(g, gSpherical);
 	
-	M3DVector3f g_yzPlane, gPast_yzPlane;
-	m3dLoadVector3f(    g_yzPlane,	0.0,     g[1],     g[2]);
-	m3dLoadVector3f(gPast_yzPlane,	0.0, gPast[1], gPast[2]);
+	
+	
+	// Determine dominant axis pattern for g and gPast
+	NSUInteger a, b, c;
+	[HelloAccelerometerController dominantAxis:g maximum:&a middle:&b minimum:&c];
+	
+	NSUInteger aPast, bPast, cPast;
+	[HelloAccelerometerController dominantAxis:gPast maximum:&aPast middle:&bPast minimum:&cPast];
+	
+	// Determine which axis has the least displacement. That is the axis we will
+	// calculate.
+	M3DVector3f deltaVector;
+	m3dSubtractVectors3f(deltaVector, g, gPast);
+	
+	NSUInteger aDelta, bDelta, cDelta;
+	[HelloAccelerometerController dominantAxis:deltaVector maximum:&aDelta middle:&bDelta minimum:&cDelta];
+	
+	if (a == aPast && b == bPast && c == cPast && cDelta != 2) {
 
-//	float yz_dotProduct			= m3dDotProductf(g_yzPlane, gPast_yzPlane);	
-//	float yz_angle_between	= m3dRadToDeg( acosf( yz_dotProduct / ( m3dGetVectorLengthf(g_yzPlane) * m3dGetVectorLengthf(gPast_yzPlane) ) ) );
-
-	M3DVector3f g_xzPlane, gPast_xzPlane;
-	m3dLoadVector3f(    g_xzPlane,	    g[0], 0.0,     g[2]);
-	m3dLoadVector3f(gPast_xzPlane,	gPast[0], 0.0, gPast[2]);
-	
-//	float xz_dotProduct			= m3dDotProductf(g_xzPlane, gPast_xzPlane);	
-//	float xz_angle_between	= m3dRadToDeg( acosf( xz_dotProduct / ( m3dGetVectorLengthf(g_xzPlane) * m3dGetVectorLengthf(gPast_xzPlane) ) ) );
-	
-//	if (yz_dotProduct > xz_dotProduct) {
-//		NSLog(@"YZ: DotProduct(%.3f) > XZ: DotProduct(%.3f)", yz_dotProduct, xz_dotProduct);
-//	} else {
-//		NSLog(@"YZ: DotProduct(%.3f) < XZ: DotProduct(%.3f)", yz_dotProduct, xz_dotProduct);
-//	}
-
-	float dx = fabsf(g[0] - gPast[0]);
-	float dy = fabsf(g[1] - gPast[1]);
-	
-	if (dy > dx) {
-//	if (yz_dotProduct > xz_dotProduct) {
 		
-		if (gPast[1] > g[1]) {
-			
-			m3dCrossProductf(exe, g, gPast);	
-		} else {
-			
-			m3dCrossProductf(exe, gPast, g);	
+		TIESpherical(g, gSpherical);
+		
+		//	float dot_x_axis				= m3dDotProductf(g, _xAxis);  
+		//	float dot_x_axis_angle_between	= m3dRadToDeg( acosf( dot_x_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_xAxis) ) ) );
+		//
+		//	float dot_y_axis				= m3dDotProductf(g, _yAxis);  
+		//	float dot_y_axis_angle_between	= m3dRadToDeg( acosf( dot_y_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_yAxis) ) ) );
+		
+		
+		
+		
+		
+		M3DVector3f axis;		
+		NSString* axisName = @"nuthin'";
+		if (cDelta == 0) axisName = @"EXE";
+		if (cDelta == 1) axisName = @"WYE";
+		if (cDelta == 2) axisName = @"ZEE";
+				
+		m3dCrossProductf(axis, g,		gPast);				
+		m3dNormalizeVectorf(axis);
+		
+		if ([HelloAccelerometerController sign:axis[cDelta]] < 0.0) {
+			m3dScaleVector3f(axis, -1.0);
 		}
-		
-		m3dCrossProductf(wye, exe, g);
-		
-	} else {
-		
-		if (gPast[0] < g[0]) {
+
+		// For now, only handle the case where the device is facing up.
+		if (g[a] < 0.0) {
 			
-			m3dCrossProductf(wye, g, gPast);	
-		} else {
+			M3DVector3f resultOfCross;
 			
-			m3dCrossProductf(wye, gPast, g);	
+			// Handle the case where have calculated the x-axis (cDelta == 0) and the z-component of the G vector is dominant axis (a == 2).
+			if (cDelta == 0 && a == 2) {
+				
+				m3dCrossProductf(resultOfCross, axis, g);			
+				m3dNormalizeVectorf(resultOfCross);
+				
+				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
+					  axisName, 
+					  axis[0], axis[1], axis[2], 
+					  g[0], g[1], g[2],
+					  resultOfCross[0], resultOfCross[1], resultOfCross[2]
+					  );
+				
+			} // if (cDelta == 0 && a == 2)
+			
+			// Handle the case where have calculated the y-axis (cDelta == 1) and the z-component of the G vector is dominant axis (a == 2).
+			if (cDelta == 1 && a == 2) {
+				
+				m3dCrossProductf(resultOfCross, g, axis);			
+				m3dNormalizeVectorf(resultOfCross);
+				
+				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
+					  axisName, 
+					  axis[0], axis[1], axis[2], 
+					  g[0], g[1], g[2],
+					  resultOfCross[0], resultOfCross[1], resultOfCross[2]
+					  );
+				
+			} // if (cDelta == 1 && a == 2)
+			
 		}
-		
-		m3dCrossProductf(exe, g, wye);
-		
-	}
 	
-	m3dNormalizeVectorf(exe);
-	m3dNormalizeVectorf(wye);
+		
+		
+		
+		
+//		if (cDelta == 1 && a == 2) {
+//			m3dCrossProductf(resultOfCross, axis, g);			
+//		}
+		
+//		NSLog(@"%@: %.3f %.3f %.3f		G: %@ %.3f %@ %.3f %@ %.3f		GPAST: %@ %.3f %@ %.3f %@ %.3f		Delta: %@ %.3f %@ %.3f %@ %.3f",
+//			  axisName,
+//			  axis[0], 
+//			  axis[1], 
+//			  axis[2], 
+//			  
+//			  [HelloAccelerometerController signedAxisName:g axis:a], 
+//			  g[a],    
+//			  [HelloAccelerometerController signedAxisName:g axis:b], 
+//			  g[b],    
+//			  [HelloAccelerometerController signedAxisName:g axis:c],
+//			  g[c],
+//			  
+//			  [HelloAccelerometerController signedAxisName:gPast axis:aPast], 
+//			  gPast[aPast],    
+//			  [HelloAccelerometerController signedAxisName:gPast axis:bPast], 
+//			  gPast[bPast],    
+//			  [HelloAccelerometerController signedAxisName:gPast axis:cPast],
+//			  gPast[cPast],
+//			  
+//			  [HelloAccelerometerController signedAxisName:deltaVector axis:aDelta],
+//			  deltaVector[aDelta], 
+//			  [HelloAccelerometerController signedAxisName:deltaVector axis:bDelta],
+//			  deltaVector[bDelta], 
+//			  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta],
+//			  deltaVector[cDelta]
+//			  );
+
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	} // if (a == aPast && b == bPast && c == cPast && cDelta != 2)
 	
-	m3dCrossProductf(zee, exe, wye);	
-
-
+	
+	
+	
 	
 	// The computed frame is the OpenGL Model View transformation. Store it away
-	m3dLoadIdentity44f(openGLModelViewTransform);
-	MatrixElement(openGLModelViewTransform, 0, 0) = exe[0];
-	MatrixElement(openGLModelViewTransform, 1, 0) = exe[1];
-	MatrixElement(openGLModelViewTransform, 2, 0) = exe[2];
-	
-	MatrixElement(openGLModelViewTransform, 0, 1) = wye[0];
-	MatrixElement(openGLModelViewTransform, 1, 1) = wye[1];
-	MatrixElement(openGLModelViewTransform, 2, 1) = wye[2];
-	
-	MatrixElement(openGLModelViewTransform, 0, 2) = zee[0];
-	MatrixElement(openGLModelViewTransform, 1, 2) = zee[1];
-	MatrixElement(openGLModelViewTransform, 2, 2) = zee[2];
+//	m3dLoadIdentity44f(openGLModelViewTransform);
+//	MatrixElement(openGLModelViewTransform, 0, 0) = exe[0];
+//	MatrixElement(openGLModelViewTransform, 1, 0) = exe[1];
+//	MatrixElement(openGLModelViewTransform, 2, 0) = exe[2];
+//	
+//	MatrixElement(openGLModelViewTransform, 0, 1) = wye[0];
+//	MatrixElement(openGLModelViewTransform, 1, 1) = wye[1];
+//	MatrixElement(openGLModelViewTransform, 2, 1) = wye[2];
+//	
+//	MatrixElement(openGLModelViewTransform, 0, 2) = zee[0];
+//	MatrixElement(openGLModelViewTransform, 1, 2) = zee[1];
+//	MatrixElement(openGLModelViewTransform, 2, 2) = zee[2];
 	
 	// Build the upper 3x3 of the OpenGL style "view" transformation from the transpose of the camera orientation
 	// This is the inversion process. Since these 3x3 matrices are orthonormal a transpose is sufficient to invert
-	m3dLoadIdentity44f(modelingTransform);	
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			MatrixElement(modelingTransform, i, j) = MatrixElement(openGLModelViewTransform, j, i);
-		}
-	}
+//	m3dLoadIdentity44f(modelingTransform);	
+//	for (int i = 0; i < 3; i++) {
+//		for (int j = 0; j < 3; j++) {
+//			MatrixElement(modelingTransform, i, j) = MatrixElement(openGLModelViewTransform, j, i);
+//		}
+//	}
 
-	
-	
 	
 	
 	
@@ -323,7 +517,11 @@ float gaussianKernal(float in) {
       rho_label.text	= [NSString stringWithFormat:@"%.2f",	gSpherical[0]				];
     theta_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[1])	];
       phi_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[2])	];
-		
+	
+	g_x_label.text	= [NSString stringWithFormat:@"%.2f", g[0]];
+	g_y_label.text	= [NSString stringWithFormat:@"%.2f", g[1]];
+	g_z_label.text	= [NSString stringWithFormat:@"%.2f", g[2]];
+	
 	
 	
 

@@ -58,6 +58,16 @@
 	NSMutableArray* _z_samples;
 }
 
++(NSString*)signPrint:(float)f;
+
++ (NSString*)signedAxisName:(M3DVector3f)vector axis:(NSUInteger)axis;
+
++(float)sign:(float)f;
+
++ (void)dominantAxis:(M3DVector3f)vector maximum:(NSUInteger*)maximum middle:(NSUInteger*)middle minimum:(NSUInteger*)minimum;
+
++ (int)nextAxis:(int)axis;
+
 - (void)initializeAccelerometer;
 
 @end
