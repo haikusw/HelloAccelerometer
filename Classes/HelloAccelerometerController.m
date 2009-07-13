@@ -16,7 +16,7 @@ static M3DVector3f _compensationVector = { -0.06, 0.14, 0.08 };
 //static M3DVector3f _yAxis = { 0.0, 1.0, 0.0 };
 //static M3DVector3f _zAxis = { 0.0, 0.0, 1.0 };
 
-#define kAccelerometerFrequency		(30)
+#define kAccelerometerFrequency		(45)
 #define kFilteringFactor			(0.1)
 
 static BOOL kernalLookuptableHasBeenBuilt = NO;
@@ -130,7 +130,6 @@ float gaussianKernalDiscrete(int index);
 	
 	return next;
 }
-
 
 - (void)initializeAccelerometer {
 	
@@ -327,19 +326,18 @@ float gaussianKernal(float in) {
 	// coordinate frame
 	float dotProduct	= m3dDotProductf(vec, gPast);	
 	float angleBetween	= m3dRadToDeg( acosf( dotProduct / ( m3dGetVectorLengthf(vec) * m3dGetVectorLengthf(gPast) ) ) );
-	
-	static float threshold = 1.0/0.5;
+
+	// if we are below the threshold for calculating a "g" bail. We need to have a "g" and "gPast" that are sufficiently separated
+	// in space to accurately calculate a new coordinate frame.
+	static float threshold = 1.0/1.0;
 	if (angleBetween < threshold) {
 		
 		return;
 	}
 
 	
-	
-	
 	// Accept vec as current value of g
 	m3dCopyVector3f(g, vec);
-	
 	
 	
 	// Determine dominant axis pattern for g and gPast
@@ -361,6 +359,9 @@ float gaussianKernal(float in) {
 
 		
 		TIESpherical(g, gSpherical);
+		
+		// Offset phi to a more convenient value.
+		gSpherical[2] = M_PI - gSpherical[2];
 		
 		//	float dot_x_axis				= m3dDotProductf(g, _xAxis);  
 		//	float dot_x_axis_angle_between	= m3dRadToDeg( acosf( dot_x_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_xAxis) ) ) );
@@ -385,57 +386,9 @@ float gaussianKernal(float in) {
 			m3dScaleVector3f(axis, -1.0);
 		}
 
-		// For now, only handle the case where the device is facing up.
-		if (g[a] < 0.0) {
-			
-//			M3DVector3f resultOfCross;
-			
-			// Handle the case where have calculated the x-axis (cDelta == 0) and the z-component of the G vector is dominant axis (a == 2).
-			if (cDelta == 0 && a == 2) {
-				
-				m3dCopyVector3f(exe, axis);
+		
 
-				m3dCrossProductf(wye, exe, g);			
-				m3dNormalizeVectorf(wye);
-				
-//				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
-//					  axisName, 
-//					  exe[0], exe[1], exe[2], 
-//					  g[0], g[1], g[2],
-//					  wye[0], wye[1], wye[2]
-//					  );
-				
-			} // if (cDelta == 0 && a == 2)
 			
-			// Handle the case where have calculated the y-axis (cDelta == 1) and the z-component of the G vector is dominant axis (a == 2).
-			if (cDelta == 1 && a == 2) {
-				
-				m3dCopyVector3f(wye, axis);
-				
-				m3dCrossProductf(exe, g, wye);			
-				m3dNormalizeVectorf(exe);
-				
-//				NSLog(@"%@: %.3f %.3f %.3f	CrossingAxis: %.3f %.3f %.3f	ResultOfCross: %.3f %.3f %.3f", 
-//					  axisName, 
-//					  wye[0], wye[1], wye[2], 
-//					  g[0], g[1], g[2],
-//					  exe[0], exe[1], exe[2]
-//					  );
-				
-			} // if (cDelta == 1 && a == 2)
-
-			m3dCrossProductf(zee, exe, wye);			
-
-		}
-	
-		
-		
-		
-		
-//		if (cDelta == 1 && a == 2) {
-//			m3dCrossProductf(resultOfCross, axis, g);			
-//		}
-		
 //		NSLog(@"%@: %.3f %.3f %.3f		G: %@ %.3f %@ %.3f %@ %.3f		GPAST: %@ %.3f %@ %.3f %@ %.3f		Delta: %@ %.3f %@ %.3f %@ %.3f",
 //			  axisName,
 //			  axis[0], 
@@ -463,16 +416,79 @@ float gaussianKernal(float in) {
 //			  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta],
 //			  deltaVector[cDelta]
 //			  );
+			
+			
 
 		
 		
+
+//		m3dLoadVector3f(exe, 0.0, 0.0, 0.0);
+//		m3dLoadVector3f(wye, 0.0, 0.0, 0.0);
+//		m3dLoadVector3f(zee, 0.0, 0.0, 0.0);
+
+		
+//		M3DVector3f derivedAxis;
+//		NSString* derivedAxisName = @"nuthin'";
+//		if (cDelta == 0) derivedAxisName = @"EXE";
+//		if (cDelta == 1) derivedAxisName = @"WYE";
 		
 		
 		
 		
+		// We have calculated exe (cDelta == 0) from the delta between g and gPast.
+		if (cDelta == 0) {
+			
+			m3dCopyVector3f(exe, axis);
+			
+			m3dCrossProductf(wye, exe, g);			
+			m3dNormalizeVectorf(wye);
+			
+		} // if (cDelta == 0)
 		
 		
 		
+		
+		// We have calculated wye (cDelta == 1) from the delta between g and gPast.
+		if (cDelta == 1) {
+			
+			m3dCopyVector3f(wye, axis);
+			
+			m3dCrossProductf(exe, g, wye);			
+			m3dNormalizeVectorf(exe);
+						
+		} // if (cDelta == 0)
+		
+		m3dCrossProductf(zee, exe, wye);			
+
+		
+//		NSLog(@"%@: %.3f %.3f %.3f		%@: %.3f %.3f %.3f		%@: %.3f %.3f %.3f		G: %@ %.3f %@ %.3f %@ %.3f		Delta: %@ %.3f %@ %.3f %@ %.3f", 
+//			  
+//			  @"EXE", 
+//			  exe[0], exe[1], exe[2], 
+//			  
+//			  @"WYE", 
+//			  wye[0], wye[1], wye[2],
+//			  
+//			  @"ZEE", 
+//			  zee[0], zee[1], zee[2],
+//			  
+//			  [HelloAccelerometerController signedAxisName:g axis:a], 
+//			  g[a],    
+//			  [HelloAccelerometerController signedAxisName:g axis:b], 
+//			  g[b],    
+//			  [HelloAccelerometerController signedAxisName:g axis:c],
+//			  g[c],
+//			  
+//			  [HelloAccelerometerController signedAxisName:deltaVector axis:aDelta],
+//			  deltaVector[aDelta], 
+//			  [HelloAccelerometerController signedAxisName:deltaVector axis:bDelta],
+//			  deltaVector[bDelta], 
+//			  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta],
+//			  deltaVector[cDelta]
+//			  
+//			  );
+		
+	
 		
 		
 		
