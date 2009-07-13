@@ -16,7 +16,7 @@ static M3DVector3f _compensationVector = { -0.06, 0.14, 0.08 };
 //static M3DVector3f _yAxis = { 0.0, 1.0, 0.0 };
 //static M3DVector3f _zAxis = { 0.0, 0.0, 1.0 };
 
-#define kAccelerometerFrequency		(45)
+#define kAccelerometerFrequency		(60)
 #define kFilteringFactor			(0.1)
 
 static BOOL kernalLookuptableHasBeenBuilt = NO;
@@ -29,7 +29,7 @@ float gaussianKernalDiscrete(int index);
 
 +(NSString*)signPrint:(float)f {
 	
-	if (f < 0.0) return @"-";
+	if (f < 0.0) return @"";
 	
 	return @"+";
 }
@@ -227,48 +227,12 @@ float gaussianKernal(float in) {
 	return g / gaussianKernalNormalization;
 }
 
-// Build x and y axes. We use a simple heuristic: observe the deltas in x and y,
-// which ever is greater indicates the axis to create. Greater delta in x implies
-// calculation of the y-axis by z X x. Greater delta in y implies calculation of
-// the x-axis by y X z. Simple, but it appears to work - 9 May 2009
-//
-//
-// The resultant coordinate frame is orientated as follows
-//
-// x-axis to the right
-//
-// y-axis upwards
-//
-// z-axis normal to the device and facing outwards
-//        towards the user
-//
-//      +---------------+
-//		| +-----------+ |
-//		| |		Y     | |
-//		| |		|     | |
-//		| |		|     | |
-//		| |		|     | |
-//		| |		+----------X
-//		| |		      | |
-//		| |			  | |
-//		| |		      | |
-//		| |		      | |
-//		| +-----------+ |
-//		|	  +---+	    |
-//		|     | O |	    |
-//		|	  +---+	    |
-//      +---------------+
-//
-// UIAccelerometerDelegate method
 - (void)accelerometer:(UIAccelerometer*)accelerometer didAccelerate:(UIAcceleration*)acceleration {
 	
 	// most current raw sample
 	NSNumber *xx = [NSNumber numberWithFloat:acceleration.x];
 	NSNumber *yy = [NSNumber numberWithFloat:acceleration.y];
 	NSNumber *zz = [NSNumber numberWithFloat:acceleration.z];
-	
-	M3DVector3f vec;
-	m3dLoadVector3f(vec, [xx floatValue], [yy floatValue], [zz floatValue]);
 	
 	// Accumulate raw samples
 	if ([_x_samples count] < gaussianKernalFootprint) {
@@ -282,6 +246,7 @@ float gaussianKernal(float in) {
 	}
 	
 	// :::::::::::::::::::::::::: Gaussian filter :::::::::::::::::::::::::: 	
+	M3DVector3f vec;
 	m3dLoadVector3f(vec,	0.0, 0.0, 0.0);
 	for (int i = 0; i < gaussianKernalFootprint; i++) {
 		
@@ -347,6 +312,19 @@ float gaussianKernal(float in) {
 	NSUInteger aPast, bPast, cPast;
 	[HelloAccelerometerController dominantAxis:gPast maximum:&aPast middle:&bPast minimum:&cPast];
 	
+	if (a != aPast) {
+		goto updateGPast;
+	}
+	
+	if (b != bPast) {
+		goto updateGPast;
+	}
+	
+	if (c != cPast) {
+		goto updateGPast;
+	}
+
+	
 	// Determine which axis has the least displacement. That is the axis we will
 	// calculate.
 	M3DVector3f deltaVector;
@@ -355,190 +333,202 @@ float gaussianKernal(float in) {
 	NSUInteger aDelta, bDelta, cDelta;
 	[HelloAccelerometerController dominantAxis:deltaVector maximum:&aDelta middle:&bDelta minimum:&cDelta];
 	
-	if (a == aPast && b == bPast && c == cPast && cDelta != 2) {
+	// Bail if the dominant delta is along the z-component
+	if (cDelta == 2) {
+//		NSLog(@"WARNING! WARNING! Z-COMPONENT OF G HAS MINIMUM DELTA. BAILING ...");
+		goto updateGPast;
+	}
 
+	M3DVector3f deltaMult;
+	m3dCopyVector3f(deltaMult, g);
+	deltaMult[0] *= deltaVector[0];
+	deltaMult[1] *= deltaVector[1];
+	deltaMult[2] *= deltaVector[2];
+	
+	NSUInteger aDeltaMult, bDeltaMult, cDeltaMult;
+	[HelloAccelerometerController dominantAxis:deltaMult maximum:&aDeltaMult middle:&bDeltaMult minimum:&cDeltaMult];
+	
 		
-		TIESpherical(g, gSpherical);
+	TIESpherical(g, gSpherical);
+	
+	// Offset phi to a more convenient value.
+	gSpherical[2] = M_PI - gSpherical[2];
+
+	
+	
+	//	float dot_x_axis				= m3dDotProductf(g, _xAxis);  
+	//	float dot_x_axis_angle_between	= m3dRadToDeg( acosf( dot_x_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_xAxis) ) ) );
+	//
+	//	float dot_y_axis				= m3dDotProductf(g, _yAxis);  
+	//	float dot_y_axis_angle_between	= m3dRadToDeg( acosf( dot_y_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_yAxis) ) ) );
+	
+	
+	
+	
+	
+	M3DVector3f axis;		
+	NSString* axisName = @"nuthin'";
+	if (cDelta == 0) axisName = @"EXE";
+	if (cDelta == 1) axisName = @"WYE";
+	if (cDelta == 2) axisName = @"ZEE";
+			
+	m3dCrossProductf(axis, g,		gPast);				
+	m3dNormalizeVectorf(axis);
+	
+	if ([HelloAccelerometerController sign:axis[c]] < 0.0) {
+		m3dScaleVector3f(axis, -1.0);
+	}
+	
+	NSString* xs = @"";
+	NSString* ys = @"";
+
+	// We have calculated exe (cDelta == 0) from the delta between g and gPast.
+	if (c == 0) {
 		
-		// Offset phi to a more convenient value.
-		gSpherical[2] = M_PI - gSpherical[2];
+		xs = @"*";
+		m3dCopyVector3f(exe, axis);
 		
-		//	float dot_x_axis				= m3dDotProductf(g, _xAxis);  
-		//	float dot_x_axis_angle_between	= m3dRadToDeg( acosf( dot_x_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_xAxis) ) ) );
-		//
-		//	float dot_y_axis				= m3dDotProductf(g, _yAxis);  
-		//	float dot_y_axis_angle_between	= m3dRadToDeg( acosf( dot_y_axis / ( m3dGetVectorLengthf(g) * m3dGetVectorLengthf(_yAxis) ) ) );
+		m3dCrossProductf(wye, exe, g);			
+		m3dNormalizeVectorf(wye);
 		
+	} // if (c == 0)
+	
+	
+	
+	
+	// We have calculated wye (cDelta == 1) from the delta between g and gPast.
+	if (c == 1) {
 		
+		ys = @"*";
+		m3dCopyVector3f(wye, axis);
 		
-		
-		
-		M3DVector3f axis;		
-		NSString* axisName = @"nuthin'";
-		if (cDelta == 0) axisName = @"EXE";
-		if (cDelta == 1) axisName = @"WYE";
-		if (cDelta == 2) axisName = @"ZEE";
+		m3dCrossProductf(exe, g, wye);			
+		m3dNormalizeVectorf(exe);
 				
-		m3dCrossProductf(axis, g,		gPast);				
-		m3dNormalizeVectorf(axis);
+	} // if (c == 1)
+
+	
+	// Finally, zee = exe X wye;
+	m3dCrossProductf(zee, exe, wye);			
+
+	
+	
+	
+//	NSLog(@"%@%@: %@%.3f %@%.3f %@%.3f		%@%@: %@%.3f %@%.3f %@%.3f		%@: %@%.3f %@%.3f %@%.3f		G:%@ %@ %@		Delta: %@ %@ %@", 
+//		  
+//		  xs,
+//		  @"EXE", 
+//		  [HelloAccelerometerController signPrint:exe[0]],
+//		  exe[0], 
+//		  [HelloAccelerometerController signPrint:exe[1]],
+//		  exe[1], 
+//		  [HelloAccelerometerController signPrint:exe[2]],
+//		  exe[2], 
+//		  
+//		  ys,
+//		  @"WYE", 
+//		  [HelloAccelerometerController signPrint:wye[0]],
+//		  wye[0], 
+//		  [HelloAccelerometerController signPrint:wye[1]],
+//		  wye[1], 
+//		  [HelloAccelerometerController signPrint:wye[2]],
+//		  wye[2], 
+//		  
+//		  @"ZEE", 
+//		  [HelloAccelerometerController signPrint:zee[0]],
+//		  zee[0], 
+//		  [HelloAccelerometerController signPrint:zee[1]],
+//		  zee[1], 
+//		  [HelloAccelerometerController signPrint:zee[2]],
+//		  zee[2], 
+//		  
+//		  [HelloAccelerometerController signedAxisName:g axis:a],
+//		  [HelloAccelerometerController signedAxisName:g axis:b],
+//		  [HelloAccelerometerController signedAxisName:g axis:c],
+//		  
+//		  [HelloAccelerometerController signedAxisName:deltaVector axis:aDelta],
+//		  [HelloAccelerometerController signedAxisName:deltaVector axis:bDelta],
+//		  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta]
+//		  
+//		  );
+	
+	
 		
-		if ([HelloAccelerometerController sign:axis[cDelta]] < 0.0) {
-			m3dScaleVector3f(axis, -1.0);
+		
+	
+	
+	
+	
+	// The computed frame is the OpenGL Model View transformation. This is the camera transform.
+	m3dLoadIdentity44f(openGLModelViewTransform);
+	MatrixElement(openGLModelViewTransform, 0, 0) = exe[0];
+	MatrixElement(openGLModelViewTransform, 1, 0) = exe[1];
+	MatrixElement(openGLModelViewTransform, 2, 0) = exe[2];
+	
+	MatrixElement(openGLModelViewTransform, 0, 1) = wye[0];
+	MatrixElement(openGLModelViewTransform, 1, 1) = wye[1];
+	MatrixElement(openGLModelViewTransform, 2, 1) = wye[2];
+	
+	MatrixElement(openGLModelViewTransform, 0, 2) = zee[0];
+	MatrixElement(openGLModelViewTransform, 1, 2) = zee[1];
+	MatrixElement(openGLModelViewTransform, 2, 2) = zee[2];
+	
+	// Build the modeling transform which is the inverse of the camera transform. Since the matrix
+	// is orthonormal we simply transpose the camera transform.
+	m3dLoadIdentity44f(modelingTransform);	
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			MatrixElement(modelingTransform, i, j) = MatrixElement(openGLModelViewTransform, j, i);
 		}
+	}
 
-		
-
-			
-//		NSLog(@"%@: %.3f %.3f %.3f		G: %@ %.3f %@ %.3f %@ %.3f		GPAST: %@ %.3f %@ %.3f %@ %.3f		Delta: %@ %.3f %@ %.3f %@ %.3f",
-//			  axisName,
-//			  axis[0], 
-//			  axis[1], 
-//			  axis[2], 
-//			  
-//			  [HelloAccelerometerController signedAxisName:g axis:a], 
-//			  g[a],    
-//			  [HelloAccelerometerController signedAxisName:g axis:b], 
-//			  g[b],    
-//			  [HelloAccelerometerController signedAxisName:g axis:c],
-//			  g[c],
-//			  
-//			  [HelloAccelerometerController signedAxisName:gPast axis:aPast], 
-//			  gPast[aPast],    
-//			  [HelloAccelerometerController signedAxisName:gPast axis:bPast], 
-//			  gPast[bPast],    
-//			  [HelloAccelerometerController signedAxisName:gPast axis:cPast],
-//			  gPast[cPast],
-//			  
-//			  [HelloAccelerometerController signedAxisName:deltaVector axis:aDelta],
-//			  deltaVector[aDelta], 
-//			  [HelloAccelerometerController signedAxisName:deltaVector axis:bDelta],
-//			  deltaVector[bDelta], 
-//			  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta],
-//			  deltaVector[cDelta]
-//			  );
-			
-			
-
-		
-		
-
-//		m3dLoadVector3f(exe, 0.0, 0.0, 0.0);
-//		m3dLoadVector3f(wye, 0.0, 0.0, 0.0);
-//		m3dLoadVector3f(zee, 0.0, 0.0, 0.0);
-
-		
-//		M3DVector3f derivedAxis;
-//		NSString* derivedAxisName = @"nuthin'";
-//		if (cDelta == 0) derivedAxisName = @"EXE";
-//		if (cDelta == 1) derivedAxisName = @"WYE";
-		
-		
-		
-		
-		// We have calculated exe (cDelta == 0) from the delta between g and gPast.
-		if (cDelta == 0) {
-			
-			m3dCopyVector3f(exe, axis);
-			
-			m3dCrossProductf(wye, exe, g);			
-			m3dNormalizeVectorf(wye);
-			
-		} // if (cDelta == 0)
-		
-		
-		
-		
-		// We have calculated wye (cDelta == 1) from the delta between g and gPast.
-		if (cDelta == 1) {
-			
-			m3dCopyVector3f(wye, axis);
-			
-			m3dCrossProductf(exe, g, wye);			
-			m3dNormalizeVectorf(exe);
-						
-		} // if (cDelta == 0)
-		
-		m3dCrossProductf(zee, exe, wye);			
-
-		
-//		NSLog(@"%@: %.3f %.3f %.3f		%@: %.3f %.3f %.3f		%@: %.3f %.3f %.3f		G: %@ %.3f %@ %.3f %@ %.3f		Delta: %@ %.3f %@ %.3f %@ %.3f", 
-//			  
-//			  @"EXE", 
-//			  exe[0], exe[1], exe[2], 
-//			  
-//			  @"WYE", 
-//			  wye[0], wye[1], wye[2],
-//			  
-//			  @"ZEE", 
-//			  zee[0], zee[1], zee[2],
-//			  
-//			  [HelloAccelerometerController signedAxisName:g axis:a], 
-//			  g[a],    
-//			  [HelloAccelerometerController signedAxisName:g axis:b], 
-//			  g[b],    
-//			  [HelloAccelerometerController signedAxisName:g axis:c],
-//			  g[c],
-//			  
-//			  [HelloAccelerometerController signedAxisName:deltaVector axis:aDelta],
-//			  deltaVector[aDelta], 
-//			  [HelloAccelerometerController signedAxisName:deltaVector axis:bDelta],
-//			  deltaVector[bDelta], 
-//			  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta],
-//			  deltaVector[cDelta]
-//			  
-//			  );
-		
 	
-		
-		
-		
-	} // if (a == aPast && b == bPast && c == cPast && cDelta != 2)
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!! TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// Concatenate the modeling orientation transform (from above) with a translation vector
+	// then invert into the OpenGL camera transform using my code from Teapot Toy.
+	//
+	// This is the relevant snippet of code. "p" is the camera translation vector
+	//	MatrixElement(_openGLCameraInverseTransform, 0, 3) = -m3dDotProductf(p, n);
+	//	MatrixElement(_openGLCameraInverseTransform, 1, 3) = -m3dDotProductf(p, o);
+	//	MatrixElement(_openGLCameraInverseTransform, 2, 3) = -m3dDotProductf(p, a);
+
 	
 	
-	
-	
-	
-	// The computed frame is the OpenGL Model View transformation. Store it away
-//	m3dLoadIdentity44f(openGLModelViewTransform);
-//	MatrixElement(openGLModelViewTransform, 0, 0) = exe[0];
-//	MatrixElement(openGLModelViewTransform, 1, 0) = exe[1];
-//	MatrixElement(openGLModelViewTransform, 2, 0) = exe[2];
+//	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 0)];
+//	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 0)];
+//	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 0)];
 //	
-//	MatrixElement(openGLModelViewTransform, 0, 1) = wye[0];
-//	MatrixElement(openGLModelViewTransform, 1, 1) = wye[1];
-//	MatrixElement(openGLModelViewTransform, 2, 1) = wye[2];
+//	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 1)];
+//	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 1)];
+//	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 1)];
 //	
-//	MatrixElement(openGLModelViewTransform, 0, 2) = zee[0];
-//	MatrixElement(openGLModelViewTransform, 1, 2) = zee[1];
-//	MatrixElement(openGLModelViewTransform, 2, 2) = zee[2];
+//	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 2)];
+//	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 2)];
+//	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 2)];
 	
-	// Build the upper 3x3 of the OpenGL style "view" transformation from the transpose of the camera orientation
-	// This is the inversion process. Since these 3x3 matrices are orthonormal a transpose is sufficient to invert
-//	m3dLoadIdentity44f(modelingTransform);	
-//	for (int i = 0; i < 3; i++) {
-//		for (int j = 0; j < 3; j++) {
-//			MatrixElement(modelingTransform, i, j) = MatrixElement(openGLModelViewTransform, j, i);
-//		}
-//	}
+	
 
 	
+	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 0)];
+	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 0)];
+	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 0)];
+	
+	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 1)];
+	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 1)];
+	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 1)];
+	
+	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 2)];
+	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 2)];
+	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 2)];
 	
 	
-	nx_label.text	= [NSString stringWithFormat:@"%.2f", exe[0]];
-	ny_label.text	= [NSString stringWithFormat:@"%.2f", exe[1]];
-	nz_label.text	= [NSString stringWithFormat:@"%.2f", exe[2]];
 	
-	ox_label.text	= [NSString stringWithFormat:@"%.2f", wye[0]];
-	oy_label.text	= [NSString stringWithFormat:@"%.2f", wye[1]];
-	oz_label.text	= [NSString stringWithFormat:@"%.2f", wye[2]];
-	
-	ax_label.text	= [NSString stringWithFormat:@"%.2f", zee[0]];
-	ay_label.text	= [NSString stringWithFormat:@"%.2f", zee[1]];
-	az_label.text	= [NSString stringWithFormat:@"%.2f", zee[2]];
 	
       rho_label.text	= [NSString stringWithFormat:@"%.2f",	gSpherical[0]				];
     theta_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[1])	];
       phi_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[2])	];
+
+	
 	
 	g_x_label.text	= [NSString stringWithFormat:@"%.2f", g[0]];
 	g_y_label.text	= [NSString stringWithFormat:@"%.2f", g[1]];
@@ -552,6 +542,7 @@ float gaussianKernal(float in) {
 	
 	
 	// Update G
+updateGPast:
 	m3dCopyVector3f(gPast, g);
 
 	
