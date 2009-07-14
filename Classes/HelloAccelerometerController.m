@@ -375,7 +375,7 @@ float gaussianKernal(float in) {
 	m3dCrossProductf(axis, g,		gPast);				
 	m3dNormalizeVectorf(axis);
 	
-	if ([HelloAccelerometerController sign:axis[c]] < 0.0) {
+	if ([HelloAccelerometerController sign:axis[ cDeltaMult ]] < 0.0) {
 		m3dScaleVector3f(axis, -1.0);
 	}
 	
@@ -383,7 +383,7 @@ float gaussianKernal(float in) {
 	NSString* ys = @"";
 
 	// We have calculated exe (cDelta == 0) from the delta between g and gPast.
-	if (c == 0) {
+	if (cDeltaMult == 0) {
 		
 		xs = @"*";
 		m3dCopyVector3f(exe, axis);
@@ -391,13 +391,13 @@ float gaussianKernal(float in) {
 		m3dCrossProductf(wye, exe, g);			
 		m3dNormalizeVectorf(wye);
 		
-	} // if (c == 0)
+	} // if (cDeltaMult == 0)
 	
 	
 	
 	
 	// We have calculated wye (cDelta == 1) from the delta between g and gPast.
-	if (c == 1) {
+	if (cDeltaMult == 1) {
 		
 		ys = @"*";
 		m3dCopyVector3f(wye, axis);
@@ -405,7 +405,7 @@ float gaussianKernal(float in) {
 		m3dCrossProductf(exe, g, wye);			
 		m3dNormalizeVectorf(exe);
 				
-	} // if (c == 1)
+	} // if (cDeltaMult == 1)
 
 	
 	// Finally, zee = exe X wye;
