@@ -16,8 +16,9 @@ static M3DVector3f _compensationVector = { -0.06, 0.14, 0.08 };
 //static M3DVector3f _yAxis = { 0.0, 1.0, 0.0 };
 //static M3DVector3f _zAxis = { 0.0, 0.0, 1.0 };
 
-#define kAccelerometerFrequency		(60)
-#define kFilteringFactor			(0.1)
+#define kAccelerometerFrequency			(60)
+#define kFilteringFactor				(0.1)
+#define kIgnoreGravitySampleThreshold	(360.0/200.0)
 
 static BOOL kernalLookuptableHasBeenBuilt = NO;
 NSMutableArray* kernalLookupTable;
@@ -147,9 +148,9 @@ float gaussianKernalDiscrete(int index);
 	
 }
 
-const int gaussianKernalFootprint		= 15;
-const float gaussianKernalScaleFactor	= 2.70;
-const float gaussianKernalSigma			= 1.0;
+static const int gaussianKernalFootprint		= 15;
+static const float gaussianKernalScaleFactor	= 2.70;
+static const float gaussianKernalSigma			= 1.0;
 
 static float gaussianKernalNormalization	= 0.0;
 
@@ -228,13 +229,18 @@ float gaussianKernal(float in) {
 }
 
 - (void)accelerometer:(UIAccelerometer*)accelerometer didAccelerate:(UIAcceleration*)acceleration {
+
+	
 	
 	// most current raw sample
 	NSNumber *xx = [NSNumber numberWithFloat:acceleration.x];
 	NSNumber *yy = [NSNumber numberWithFloat:acceleration.y];
 	NSNumber *zz = [NSNumber numberWithFloat:acceleration.z];
+
 	
-	// Accumulate raw samples
+	
+	
+	// Accumulate a sufficient numbers samples before going on to calculate "G".
 	if ([_x_samples count] < gaussianKernalFootprint) {
 		
 		// Enqueue
@@ -244,8 +250,11 @@ float gaussianKernal(float in) {
 		
 		return;
 	}
+
 	
-	// :::::::::::::::::::::::::: Gaussian filter :::::::::::::::::::::::::: 	
+	
+	
+	// Using a Gaussian kernal, create a single filtered sample from the raw samples.
 	M3DVector3f vec;
 	m3dLoadVector3f(vec,	0.0, 0.0, 0.0);
 	for (int i = 0; i < gaussianKernalFootprint; i++) {
@@ -258,48 +267,58 @@ float gaussianKernal(float in) {
 
 	}
 
+
 	
-	// Dequeue and discard oldest sample from the queue
+	
+	// Dequeue and discard the oldest sample
 	[_x_samples removeObjectAtIndex:0];
 	[_y_samples removeObjectAtIndex:0];
 	[_z_samples removeObjectAtIndex:0];
+
 	
-	// Enqueue most current sample
+	
+	
+	
+	// Enqueue the most current sample
 	[_x_samples addObject:xx];
 	[_y_samples addObject:yy];
 	[_z_samples addObject:zz];
 	
 
+
+	
 	
 	// Add calibration compensation
 	m3dAddVectors2f(vec, vec, _compensationVector);
 
 	
 	
+	
 	// Do nothing until we have a past value of "G"
-	static BOOL gPastSet = NO;
-	if (gPastSet == NO) {
+	static BOOL isGPastSet = NO;
+	if (isGPastSet == NO) {
 		
+		// The most recent sample becomes gPast
 		m3dCopyVector3f(gPast, vec);
-		gPastSet = YES;
+		isGPastSet = YES;
 		
 		return;
 	}
 
 	
-	// Establish a threshold below which we discard samples. We need a large enough delta (ie, dot product) to compute a valid
-	// coordinate frame
+	// If the angle between "g" and "gPast" is below the threshold, bail. We need a "g" and "gPast" that are sufficiently
+	// separated in space to accurately calculate a new coordinate frame. We will keep "gPast" as we examine candidates
+	// for "g".
 	float dotProduct	= m3dDotProductf(vec, gPast);	
 	float angleBetween	= m3dRadToDeg( acosf( dotProduct / ( m3dGetVectorLengthf(vec) * m3dGetVectorLengthf(gPast) ) ) );
 
-	// if we are below the threshold for calculating a "g" bail. We need to have a "g" and "gPast" that are sufficiently separated
-	// in space to accurately calculate a new coordinate frame.
-	static float threshold = 1.0/1.0;
-	if (angleBetween < threshold) {
+	if (angleBetween < kIgnoreGravitySampleThreshold) {
 		
 		return;
 	}
 
+
+	
 	
 	// Accept vec as current value of g
 	m3dCopyVector3f(g, vec);
@@ -312,6 +331,8 @@ float gaussianKernal(float in) {
 	NSUInteger aPast, bPast, cPast;
 	[HelloAccelerometerController dominantAxis:gPast maximum:&aPast middle:&bPast minimum:&cPast];
 	
+	// We want the axis dominance pattern for "g" and "gPast" to be identical. We don't care about
+	// the magnitude or sign of corresponding axes, just that they follow the same pattern of precedence.
 	if (a != aPast) {
 		goto updateGPast;
 	}
@@ -325,20 +346,16 @@ float gaussianKernal(float in) {
 	}
 
 	
-	// Determine which axis has the least displacement. That is the axis we will
-	// calculate.
+	// The component with least displacement corresponds to the axis (X, Y, or Z) we will calculate from
+	// the cross product of "g" and "gPast"
 	M3DVector3f deltaVector;
 	m3dSubtractVectors3f(deltaVector, g, gPast);
 	
 	NSUInteger aDelta, bDelta, cDelta;
 	[HelloAccelerometerController dominantAxis:deltaVector maximum:&aDelta middle:&bDelta minimum:&cDelta];
-	
-	// Bail if the dominant delta is along the z-component
-	if (cDelta == 2) {
-//		NSLog(@"WARNING! WARNING! Z-COMPONENT OF G HAS MINIMUM DELTA. BAILING ...");
-		goto updateGPast;
-	}
 
+	
+	
 	M3DVector3f deltaMult;
 	m3dCopyVector3f(deltaMult, g);
 	deltaMult[0] *= deltaVector[0];
@@ -347,8 +364,19 @@ float gaussianKernal(float in) {
 	
 	NSUInteger aDeltaMult, bDeltaMult, cDeltaMult;
 	[HelloAccelerometerController dominantAxis:deltaMult maximum:&aDeltaMult middle:&bDeltaMult minimum:&cDeltaMult];
+
+	
+	
+	
+	// Bail if the dominant delta is along the z-component
+	if (cDeltaMult == 2) {
+//		NSLog(@"WARNING! WARNING! Z-COMPONENT OF G HAS MINIMUM DELTA. BAILING ...");
+		goto updateGPast;
+	} // if (cDeltaMult == 2) 
 	
 		
+
+	
 	TIESpherical(g, gSpherical);
 	
 	// Offset phi to a more convenient value.
@@ -406,7 +434,6 @@ float gaussianKernal(float in) {
 		m3dNormalizeVectorf(exe);
 				
 	} // if (cDeltaMult == 1)
-
 	
 	// Finally, zee = exe X wye;
 	m3dCrossProductf(zee, exe, wye);			
@@ -459,26 +486,26 @@ float gaussianKernal(float in) {
 	
 	
 	
-	// The computed frame is the OpenGL Model View transformation. This is the camera transform.
-	m3dLoadIdentity44f(openGLModelViewTransform);
-	MatrixElement(openGLModelViewTransform, 0, 0) = exe[0];
-	MatrixElement(openGLModelViewTransform, 1, 0) = exe[1];
-	MatrixElement(openGLModelViewTransform, 2, 0) = exe[2];
+	// exe, wye, and zee are the basis vectors of the camera transform.
+	m3dLoadIdentity44f(cameraTransform);
+	MatrixElement(cameraTransform, 0, 0) = exe[0];
+	MatrixElement(cameraTransform, 1, 0) = exe[1];
+	MatrixElement(cameraTransform, 2, 0) = exe[2];
 	
-	MatrixElement(openGLModelViewTransform, 0, 1) = wye[0];
-	MatrixElement(openGLModelViewTransform, 1, 1) = wye[1];
-	MatrixElement(openGLModelViewTransform, 2, 1) = wye[2];
+	MatrixElement(cameraTransform, 0, 1) = wye[0];
+	MatrixElement(cameraTransform, 1, 1) = wye[1];
+	MatrixElement(cameraTransform, 2, 1) = wye[2];
 	
-	MatrixElement(openGLModelViewTransform, 0, 2) = zee[0];
-	MatrixElement(openGLModelViewTransform, 1, 2) = zee[1];
-	MatrixElement(openGLModelViewTransform, 2, 2) = zee[2];
-	
-	// Build the modeling transform which is the inverse of the camera transform. Since the matrix
-	// is orthonormal we simply transpose the camera transform.
+	MatrixElement(cameraTransform, 0, 2) = zee[0];
+	MatrixElement(cameraTransform, 1, 2) = zee[1];
+	MatrixElement(cameraTransform, 2, 2) = zee[2];
+
+	// Inversion of the camera transform yields the modeling transform. Since the camera transform
+	// is orthonormal, its inverse is the same as its transpose.
 	m3dLoadIdentity44f(modelingTransform);	
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
-			MatrixElement(modelingTransform, i, j) = MatrixElement(openGLModelViewTransform, j, i);
+			MatrixElement(modelingTransform, i, j) = MatrixElement(cameraTransform, j, i);
 		}
 	}
 
@@ -494,32 +521,36 @@ float gaussianKernal(float in) {
 
 	
 	
-//	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 0)];
-//	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 0)];
-//	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 0)];
-//	
-//	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 1)];
-//	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 1)];
-//	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 1)];
-//	
-//	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 2)];
-//	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 2)];
-//	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 2)];
+	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 0)];
+	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 0)];
+	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 0)];
+	
+	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 1)];
+	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 1)];
+	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 1)];
+	
+	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 2)];
+	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 2)];
+	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 2)];
+	
+	px_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 3)];
+	py_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 3)];
+	pz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 3)];
 	
 	
 
 	
-	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 0)];
-	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 0)];
-	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 0)];
+	nx_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 0)];
+	ny_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 0)];
+	nz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 0)];
 	
-	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 1)];
-	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 1)];
-	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 1)];
+	ox_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 1)];
+	oy_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 1)];
+	oz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 1)];
 	
-	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 2)];
-	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 2)];
-	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 2)];
+	ax_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 2)];
+	ay_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 2)];
+	az_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 2)];
 	
 	
 	

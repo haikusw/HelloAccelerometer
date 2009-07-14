@@ -11,13 +11,26 @@
 #import "VectorMatrix.h"
 
 @interface HelloAccelerometerController : NSObject <UIAccelerometerDelegate> {
-		
-	// Physical "G" value
-    IBOutlet UILabel		*g_x_label;
-    IBOutlet UILabel		*g_y_label;
-    IBOutlet UILabel		*g_z_label;
+
+	NSMutableArray			*_x_samples;
+	NSMutableArray			*_y_samples;
+	NSMutableArray			*_z_samples;
+
+	M3DVector3f				acc_instantaneous;
+
 	M3DVector3f				g;
+	M3DVector3f				gSpherical;
+	
 	M3DVector3f				gPast;
+
+	M3DVector3f				exe;
+	M3DVector3f				wye;
+	M3DVector3f				zee;
+	
+	M3DMatrix44f			cameraTransform;
+	M3DMatrix44f			modelingTransform;
+	M3DMatrix44f			openGLModelViewTransform;
+
 	
 	// Robert Paul notation for matrices
 	//	nx ox ax px
@@ -26,36 +39,54 @@
     IBOutlet UILabel		*nx_label;
     IBOutlet UILabel		*ny_label;
     IBOutlet UILabel		*nz_label;
-	M3DVector3f				exe;
 	
     IBOutlet UILabel		*ox_label;
     IBOutlet UILabel		*oy_label;
     IBOutlet UILabel		*oz_label;
-	M3DVector3f				wye;
 	
     IBOutlet UILabel		*ax_label;
     IBOutlet UILabel		*ay_label;
     IBOutlet UILabel		*az_label;
-	M3DVector3f				zee;
 	
-	M3DMatrix44f			modelingTransform;
-	M3DMatrix44f			openGLModelViewTransform;
+    IBOutlet UILabel		*px_label;
+    IBOutlet UILabel		*py_label;
+    IBOutlet UILabel		*pz_label;
 	
-	// Spherical
+    IBOutlet UILabel		*nx_model_label;
+    IBOutlet UILabel		*ny_model_label;
+    IBOutlet UILabel		*nz_model_label;
+	
+    IBOutlet UILabel		*ox_model_label;
+    IBOutlet UILabel		*oy_model_label;
+    IBOutlet UILabel		*oz_model_label;
+	
+    IBOutlet UILabel		*ax_model_label;
+    IBOutlet UILabel		*ay_model_label;
+    IBOutlet UILabel		*az_model_label;
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	// "G" Vector
+    IBOutlet UILabel		*g_x_label;
+    IBOutlet UILabel		*g_y_label;
+    IBOutlet UILabel		*g_z_label;
+	
+	// "G" Vector in spherical coordinates
     IBOutlet UILabel		*rho_label;
     IBOutlet UILabel		*theta_label;
     IBOutlet UILabel		*phi_label;
-	M3DVector3f				gSpherical;
 	
 	// Instantaneous acceleration
     IBOutlet UILabel		*acc_instantaneous_x_label;
     IBOutlet UILabel		*acc_instantaneous_y_label;
     IBOutlet UILabel		*acc_instantaneous_z_label;
-	M3DVector3f				acc_instantaneous;
 	
-	NSMutableArray* _x_samples;
-	NSMutableArray* _y_samples;
-	NSMutableArray* _z_samples;
 }
 
 +(NSString*)signPrint:(float)f;
