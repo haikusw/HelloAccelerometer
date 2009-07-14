@@ -502,13 +502,22 @@ float gaussianKernal(float in) {
 
 	// Inversion of the camera transform yields the modeling transform. Since the camera transform
 	// is orthonormal, its inverse is the same as its transpose.
-	m3dLoadIdentity44f(modelingTransform);	
+	M3DMatrix44f pureOrientation;
+	m3dLoadIdentity44f(pureOrientation);	
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
-			MatrixElement(modelingTransform, i, j) = MatrixElement(cameraTransform, j, i);
+			MatrixElement(pureOrientation, i, j) = MatrixElement(cameraTransform, j, i);
 		}
 	}
 
+	M3DMatrix44f translation;
+	TIEMatrix4x4LoadTranslation(translation, 0.0, 0.0, 16.0);
+	
+	// TIEMatrix4x4Concatenation(B, A, B*A) assuming pt' results from B * A * pt
+	TIEMatrix4x4Concatenation(pureOrientation, translation, modelingTransform);
+
+	
+	
 	
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!! TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	// Concatenate the modeling orientation transform (from above) with a translation vector
@@ -533,10 +542,6 @@ float gaussianKernal(float in) {
 	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 2)];
 	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 2)];
 	
-	px_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 3)];
-	py_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 3)];
-	pz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 3)];
-	
 	
 
 	
@@ -551,6 +556,10 @@ float gaussianKernal(float in) {
 	ax_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 2)];
 	ay_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 2)];
 	az_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 2)];
+	
+	px_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 3)];
+	py_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 3)];
+	pz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 3)];
 	
 	
 	

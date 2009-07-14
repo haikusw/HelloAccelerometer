@@ -36,6 +36,8 @@
 	//	nx ox ax px
 	//	ny oy ay py
 	//	nz oz az pz
+	
+	// The camera transform.
     IBOutlet UILabel		*nx_label;
     IBOutlet UILabel		*ny_label;
     IBOutlet UILabel		*nz_label;
@@ -51,7 +53,9 @@
     IBOutlet UILabel		*px_label;
     IBOutlet UILabel		*py_label;
     IBOutlet UILabel		*pz_label;
+
 	
+	// The modeling transform
     IBOutlet UILabel		*nx_model_label;
     IBOutlet UILabel		*ny_model_label;
     IBOutlet UILabel		*nz_model_label;
@@ -63,6 +67,10 @@
     IBOutlet UILabel		*ax_model_label;
     IBOutlet UILabel		*ay_model_label;
     IBOutlet UILabel		*az_model_label;
+	
+    IBOutlet UILabel		*px_model_label;
+    IBOutlet UILabel		*py_model_label;
+    IBOutlet UILabel		*pz_model_label;
 	
 	
 	

@@ -78,12 +78,22 @@ void m3dCopyMatrix44f(M3DMatrix44f dst, M3DMatrix44f src);
 void m3dLoadIdentity44f(M3DMatrix44f m);
 
 int TIEDominantAxis(M3DVector3f v);
+	
 void TIESpherical(M3DVector3f rectangular, M3DVector3f spherical);
+	
 void TIESphericalXYZ(float x, float y, float z, M3DVector3f spherical);
+	
 void TIERectangular(M3DVector3f spherical, M3DVector3f rectangular);
+
+// LoadTranslation	
+void TIEMatrix4x4LoadTranslation(M3DMatrix44f matrix, float xTranslate, float yTranslate, float zTranslate);
+
+// Matrix concatenation
+void TIEMatrix4x4Concatenation(M3DMatrix44f m1, M3DMatrix44f m2, M3DMatrix44f result);
 	
 // Transform a 3D point. We currently use vectors because I haven't implemented a point class yet
 void TIEMatrix4x4MulPoint3(M3DMatrix44f m4x4, M3DVector3f point);
+	
 void TIEAffineTransform(float* ig, float* mg, float* og, int n, int id, int mo);
 	
 void TIESetRotationX(float* m4x4, float radians);
