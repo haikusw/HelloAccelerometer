@@ -20,8 +20,20 @@ static M3DVector3f _compensationVector = { -0.06, 0.14, 0.08 };
 #define kFilteringFactor				(0.1)
 #define kIgnoreGravitySampleThreshold	(360.0/200.0)
 
+inline float TEIFastAbs(float x) { 
+	return (x < 0) ? -x : x; 
+}
+
+#define TEIMax(a, b) ((a) > (b) ? (a) : (b))
+#define TEIMin(a, b) ((a) < (b) ? (a) : (b))
+
+#define TEIMax3(a, b, c) (TEIMax((a), TEIMax((b), (c))))
+#define TEIMin3(a, b, c) (TEIMin((a), TEIMin((b), (c))))
+
 static BOOL kernalLookuptableHasBeenBuilt = NO;
-NSMutableArray* kernalLookupTable;
+
+static NSMutableArray* kernalLookupTable = nil;
+
 float gaussianKernalHelper(float in);
 float gaussianKernal(float in);
 float gaussianKernalDiscrete(int index);
@@ -73,63 +85,95 @@ float gaussianKernalDiscrete(int index);
 	return 1.0f;
 }
 
+#define TEINextVector3DIndex(i) ((i + 1) % 3)
+
+#define TEIMaxIndex(v, a, b) ((v[a]) > (v[b]) ? (a) : (b))
+#define TEIMinIndex(v, a, b) ((v[a]) < (v[b]) ? (a) : (b))
+
+
 + (void)dominantAxis:(M3DVector3f)vector maximum:(NSUInteger*)maximum middle:(NSUInteger*)middle minimum:(NSUInteger*)minimum {
-
+	
 	M3DVector3f fabulous;
-	m3dLoadVector3f(fabulous, fabsf(vector[0]), fabsf(vector[1]), fabsf(vector[2]));
+	m3dLoadVector3f(fabulous, TEIFastAbs(vector[0]), TEIFastAbs(vector[1]), TEIFastAbs(vector[2]));
+		
+	*maximum = *middle = *minimum = 0;
 	
+//	for (int i = 0; i < 3; i++) {
+//		
+//		*maximum = TEIMaxIndex(fabulous, i, *maximum);
+//		*minimum = TEIMinIndex(fabulous, i, *minimum);
+//	} // for (i)
 	
-	if (fabulous[0] > fabulous[1] && fabulous[0] > fabulous[2]) {
-		
-		*maximum = 0;
-		
-		if (fabulous[1] > fabulous[2]) {
-			*middle		= 1;
-			*minimum	= 2;
-		} else {
-			*middle		= 2;
-			*minimum	= 1;
-		}
-		
-	}
-	
-	if (fabulous[1] > fabulous[2] && fabulous[1] > fabulous[0]) {
-		
-		*maximum = 1;
-		
-		if (fabulous[2] > fabulous[0]) {
-			*middle		= 2;
-			*minimum	= 0;
-		} else {
-			*middle		= 0;
-			*minimum	= 2;
-		}
-		
-	}
-	
-	if (fabulous[2] > fabulous[0] && fabulous[2] > fabulous[1]) {
-		
-		*maximum = 2;
-		
-		if (fabulous[0] > fabulous[1]) {
-			*middle		= 0;
-			*minimum	= 1;
-		} else {
-			*middle		= 1;
-			*minimum	= 0;
-		}
-		
-	}
-	
-}
+	*maximum = TEIMaxIndex(fabulous, 0, *maximum);
+	*minimum = TEIMinIndex(fabulous, 0, *minimum);
 
-+ (int)nextAxis:(int)axis {
+	*maximum = TEIMaxIndex(fabulous, 1, *maximum);
+	*minimum = TEIMinIndex(fabulous, 1, *minimum);
+
+	*maximum = TEIMaxIndex(fabulous, 2, *maximum);
+	*minimum = TEIMinIndex(fabulous, 2, *minimum);
+
+	// Adding the indices of maximum and minimum determines the index of middle
+	if (*maximum + *minimum == 1) {
+		
+		*middle = 2;
+		return;
+	} // if (*maximum + *minimum == 1)
 	
-	int next;
+	if (*maximum + *minimum == 2) {
+		
+		*middle = 1;
+		return;
+	} // if (*maximum + *minimum == 2)
 	
-	next = (axis + 1) % 3;
+	*middle = 0;
+
 	
-	return next;
+	
+//	if (fabulous[0] > fabulous[1] && fabulous[0] > fabulous[2]) {
+//		
+//		*maximum = 0;
+//		
+//		if (fabulous[1] > fabulous[2]) {
+//			*middle		= 1;
+//			*minimum	= 2;
+//		} else {
+//			*middle		= 2;
+//			*minimum	= 1;
+//		}
+//		
+//	}
+//	
+//	if (fabulous[1] > fabulous[2] && fabulous[1] > fabulous[0]) {
+//		
+//		*maximum = 1;
+//		
+//		if (fabulous[2] > fabulous[0]) {
+//			*middle		= 2;
+//			*minimum	= 0;
+//		} else {
+//			*middle		= 0;
+//			*minimum	= 2;
+//		}
+//		
+//	}
+//	
+//	if (fabulous[2] > fabulous[0] && fabulous[2] > fabulous[1]) {
+//		
+//		*maximum = 2;
+//		
+//		if (fabulous[0] > fabulous[1]) {
+//			*middle		= 0;
+//			*minimum	= 1;
+//		} else {
+//			*middle		= 1;
+//			*minimum	= 0;
+//		}
+//		
+//	}
+
+	
+	
 }
 
 - (void)initializeAccelerometer {
@@ -148,11 +192,10 @@ float gaussianKernalDiscrete(int index);
 	
 }
 
-static const int gaussianKernalFootprint		= 15;
+static const   int gaussianKernalFootprint		= 15;
 static const float gaussianKernalScaleFactor	= 2.70;
-static const float gaussianKernalSigma			= 1.0;
-
-static float gaussianKernalNormalization	= 0.0;
+static const float gaussianKernalSigma			= 1.00;
+static       float gaussianKernalNormalization	= 0.00;
 
 float gaussianKernalHelper(float in) {
 	
@@ -284,6 +327,8 @@ float gaussianKernal(float in) {
 	[_y_samples addObject:yy];
 	[_z_samples addObject:zz];
 	
+	// Store the instantaneous acceleration. Will use for wacky scaling of objects
+	m3dLoadVector3f(acc_instantaneous, [xx floatValue], [yy floatValue], [zz floatValue]);
 
 
 	
@@ -543,8 +588,6 @@ float gaussianKernal(float in) {
 	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 2)];
 	
 	
-
-	
 	nx_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 0)];
 	ny_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 0)];
 	nz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 0)];
@@ -561,18 +604,33 @@ float gaussianKernal(float in) {
 	py_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 3)];
 	pz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 3)];
 	
+
+	static float max_acc_x = 0.0;
+	static float max_acc_y = 0.0;
+	static float max_acc_z = 0.0;
 	
+	max_acc_x = TEIMax(max_acc_x, TEIFastAbs(acc_instantaneous[0]));
+	max_acc_y = TEIMax(max_acc_y, TEIFastAbs(acc_instantaneous[1]));
+	max_acc_z = TEIMax(max_acc_z, TEIFastAbs(acc_instantaneous[2]));
 	
-	
-      rho_label.text	= [NSString stringWithFormat:@"%.2f",	gSpherical[0]				];
-    theta_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[1])	];
-      phi_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[2])	];
+	acc_instantaneous_x_label.text	= [NSString stringWithFormat:@"%.2f", max_acc_x];
+	acc_instantaneous_y_label.text	= [NSString stringWithFormat:@"%.2f", max_acc_y];
+	acc_instantaneous_z_label.text	= [NSString stringWithFormat:@"%.2f", max_acc_z];
 
 	
 	
-	g_x_label.text	= [NSString stringWithFormat:@"%.2f", g[0]];
-	g_y_label.text	= [NSString stringWithFormat:@"%.2f", g[1]];
-	g_z_label.text	= [NSString stringWithFormat:@"%.2f", g[2]];
+//	g_x_label.text	= [NSString stringWithFormat:@"%.2f", g[0]];
+//	g_y_label.text	= [NSString stringWithFormat:@"%.2f", g[1]];
+//	g_z_label.text	= [NSString stringWithFormat:@"%.2f", g[2]];
+	
+
+	
+//      rho_label.text	= [NSString stringWithFormat:@"%.2f",	gSpherical[0]				];
+//    theta_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[1])	];
+//      phi_label.text	= [NSString stringWithFormat:@"%.1f",	m3dRadToDeg(gSpherical[2])	];
+
+	
+	
 	
 	
 	

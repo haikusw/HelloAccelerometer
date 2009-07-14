@@ -105,8 +105,6 @@
 
 + (void)dominantAxis:(M3DVector3f)vector maximum:(NSUInteger*)maximum middle:(NSUInteger*)middle minimum:(NSUInteger*)minimum;
 
-+ (int)nextAxis:(int)axis;
-
 - (void)initializeAccelerometer;
 
 @end
