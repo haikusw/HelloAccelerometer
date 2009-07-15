@@ -54,8 +54,8 @@
 		080E96DDFE201D6D7F000001 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				313F2B0E0FB36D1E00197F98 /* VectorMatrix.cpp */,
 				313F2B0F0FB36D1E00197F98 /* VectorMatrix.h */,
+				313F2B0E0FB36D1E00197F98 /* VectorMatrix.cpp */,
 				31045DD80FB2025C00618851 /* HelloAccelerometerController.h */,
 				31045DD90FB2025D00618851 /* HelloAccelerometerController.m */,
 				1D3623240D0F684500981E51 /* HelloAccelerometerAppDelegate.h */,

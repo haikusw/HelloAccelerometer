@@ -37,7 +37,7 @@
 	//	ny oy ay py
 	//	nz oz az pz
 	
-	// The camera transform.
+	// The Modeling Matrix.
     IBOutlet UILabel		*nx_label;
     IBOutlet UILabel		*ny_label;
     IBOutlet UILabel		*nz_label;
@@ -55,22 +55,22 @@
     IBOutlet UILabel		*pz_label;
 
 	
-	// The modeling transform
-    IBOutlet UILabel		*nx_model_label;
-    IBOutlet UILabel		*ny_model_label;
-    IBOutlet UILabel		*nz_model_label;
+	// The OpenGL Mode View Matrix
+    IBOutlet UILabel		*nx_opengl_label;
+    IBOutlet UILabel		*ny_opengl_label;
+    IBOutlet UILabel		*nz_opengl_label;
 	
-    IBOutlet UILabel		*ox_model_label;
-    IBOutlet UILabel		*oy_model_label;
-    IBOutlet UILabel		*oz_model_label;
+    IBOutlet UILabel		*ox_opengl_label;
+    IBOutlet UILabel		*oy_opengl_label;
+    IBOutlet UILabel		*oz_opengl_label;
 	
-    IBOutlet UILabel		*ax_model_label;
-    IBOutlet UILabel		*ay_model_label;
-    IBOutlet UILabel		*az_model_label;
+    IBOutlet UILabel		*ax_opengl_label;
+    IBOutlet UILabel		*ay_opengl_label;
+    IBOutlet UILabel		*az_opengl_label;
 	
-    IBOutlet UILabel		*px_model_label;
-    IBOutlet UILabel		*py_model_label;
-    IBOutlet UILabel		*pz_model_label;
+    IBOutlet UILabel		*px_opengl_label;
+    IBOutlet UILabel		*py_opengl_label;
+    IBOutlet UILabel		*pz_opengl_label;
 	
 	
 	

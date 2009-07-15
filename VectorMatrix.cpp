@@ -167,6 +167,21 @@ void TIERectangular(M3DVector3f spherical, M3DVector3f rectangular) {
     rectangular[2] = rho * cosf(phi);
 }
 
+void TIEMatrix4x4LoadTranspose(M3DMatrix44f transposed, M3DMatrix44f src) {
+	
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			MatrixElement(transposed, i, j) = MatrixElement(src, j, i);
+		}
+	}
+	
+}
+
+void TIEMatrix4x4LoadTranslationFromVector(M3DMatrix44f matrix, M3DVector3f translation) {
+	
+	TIEMatrix4x4LoadTranslation(matrix, translation[0], translation[1], translation[2]);
+}
+
 void TIEMatrix4x4LoadTranslation(M3DMatrix44f matrix, float x, float y, float z) {
 	
 	m3dLoadIdentity44f(matrix);

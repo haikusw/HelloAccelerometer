@@ -90,7 +90,6 @@ float gaussianKernalDiscrete(int index);
 #define TEIMaxIndex(v, a, b) ((v[a]) > (v[b]) ? (a) : (b))
 #define TEIMinIndex(v, a, b) ((v[a]) < (v[b]) ? (a) : (b))
 
-
 + (void)dominantAxis:(M3DVector3f)vector maximum:(NSUInteger*)maximum middle:(NSUInteger*)middle minimum:(NSUInteger*)minimum {
 	
 	M3DVector3f fabulous;
@@ -415,6 +414,7 @@ float gaussianKernal(float in) {
 	
 	// Bail if the dominant delta is along the z-component
 	if (cDeltaMult == 2) {
+		
 //		NSLog(@"WARNING! WARNING! Z-COMPONENT OF G HAS MINIMUM DELTA. BAILING ...");
 		goto updateGPast;
 	} // if (cDeltaMult == 2) 
@@ -523,9 +523,6 @@ float gaussianKernal(float in) {
 //		  [HelloAccelerometerController signedAxisName:deltaVector axis:cDelta]
 //		  
 //		  );
-	
-	
-		
 		
 	
 	
@@ -548,13 +545,15 @@ float gaussianKernal(float in) {
 	// Inversion of the camera transform yields the modeling transform. Since the camera transform
 	// is orthonormal, its inverse is the same as its transpose.
 	M3DMatrix44f pureOrientation;
-	m3dLoadIdentity44f(pureOrientation);	
+	m3dLoadIdentity44f(pureOrientation);
+
+	// Transpose upper 3x3
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
 			MatrixElement(pureOrientation, i, j) = MatrixElement(cameraTransform, j, i);
 		}
 	}
-
+	
 	M3DMatrix44f translation;
 	TIEMatrix4x4LoadTranslation(translation, 0.0, 0.0, 16.0);
 	
@@ -562,47 +561,100 @@ float gaussianKernal(float in) {
 	TIEMatrix4x4Concatenation(pureOrientation, translation, modelingTransform);
 
 	
+	M3DVector3f nn;
+	nn[0] = MatrixElement(modelingTransform, 0, 0);
+	nn[1] = MatrixElement(modelingTransform, 1, 0);
+	nn[2] = MatrixElement(modelingTransform, 2, 0);
+	
+	M3DVector3f oo;
+	oo[0] = MatrixElement(modelingTransform, 0, 1);
+	oo[1] = MatrixElement(modelingTransform, 1, 1);
+	oo[2] = MatrixElement(modelingTransform, 2, 1);
+	
+	M3DVector3f aa;
+	aa[0] = MatrixElement(modelingTransform, 0, 2);
+	aa[1] = MatrixElement(modelingTransform, 1, 2);
+	aa[2] = MatrixElement(modelingTransform, 2, 2);
+	
+	M3DVector3f pp;
+	pp[0] = MatrixElement(modelingTransform, 0, 3);
+	pp[1] = MatrixElement(modelingTransform, 1, 3);
+	pp[2] = MatrixElement(modelingTransform, 2, 3);
 	
 	
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!! TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	// Concatenate the modeling orientation transform (from above) with a translation vector
-	// then invert into the OpenGL camera transform using my code from Teapot Toy.
-	//
-	// This is the relevant snippet of code. "p" is the camera translation vector
-	//	MatrixElement(_openGLCameraInverseTransform, 0, 3) = -m3dDotProductf(p, n);
-	//	MatrixElement(_openGLCameraInverseTransform, 1, 3) = -m3dDotProductf(p, o);
-	//	MatrixElement(_openGLCameraInverseTransform, 2, 3) = -m3dDotProductf(p, a);
+	m3dCopyMatrix44f(openGLModelViewTransform, cameraTransform);
+	MatrixElement(openGLModelViewTransform, 0, 3) = -m3dDotProductf(pp, nn);
+	MatrixElement(openGLModelViewTransform, 1, 3) = -m3dDotProductf(pp, oo);
+	MatrixElement(openGLModelViewTransform, 2, 3) = -m3dDotProductf(pp, aa);
 
 	
 	
-	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 0)];
-	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 0)];
-	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 0)];
-	
-	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 1)];
-	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 1)];
-	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 1)];
-	
-	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 0, 2)];
-	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 1, 2)];
-	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(cameraTransform, 2, 2)];
+	M3DMatrix44f identity;
+	// TIEMatrix4x4Concatenation(B, A, B*A) assuming pt' results from B * A * pt
+	TIEMatrix4x4Concatenation(openGLModelViewTransform, modelingTransform, identity);
+
 	
 	
-	nx_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 0)];
-	ny_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 0)];
-	nz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 0)];
+//	NSLog(@"nx ox ax px %.2f %.2f %.2f %.2f", 
+//		  MatrixElement(identity, 0, 0), 
+//		  MatrixElement(identity, 0, 1),
+//		  MatrixElement(identity, 0, 2),
+//		  MatrixElement(identity, 0, 3));
+//	
+//	NSLog(@"ny oy ay py %.2f %.2f %.2f %.2f", 
+//		  MatrixElement(identity, 1, 0), 
+//		  MatrixElement(identity, 1, 1),
+//		  MatrixElement(identity, 1, 2),
+//		  MatrixElement(identity, 1, 3));
+//	
+//	NSLog(@"nz oz az pz %.2f %.2f %.2f %.2f", 
+//		  MatrixElement(identity, 2, 0), 
+//		  MatrixElement(identity, 2, 1),
+//		  MatrixElement(identity, 2, 2),
+//		  MatrixElement(identity, 2, 3));
+//	
+//	NSLog(@"xx yy zz ww %.2f %.2f %.2f %.2f", 
+//		  MatrixElement(identity, 3, 0), 
+//		  MatrixElement(identity, 3, 1),
+//		  MatrixElement(identity, 3, 2),
+//		  MatrixElement(identity, 3, 3));
+//	
+//	NSLog(@"-------------------------------");
 	
-	ox_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 1)];
-	oy_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 1)];
-	oz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 1)];
 	
-	ax_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 2)];
-	ay_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 2)];
-	az_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 2)];
 	
-	px_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 3)];
-	py_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 3)];
-	pz_model_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 3)];
+	nx_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 0)];
+	ny_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 0)];
+	nz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 0)];
+	
+	ox_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 1)];
+	oy_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 1)];
+	oz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 1)];
+	
+	ax_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 2)];
+	ay_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 2)];
+	az_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 2)];
+	
+	px_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 0, 3)];
+	py_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 1, 3)];
+	pz_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(modelingTransform, 2, 3)];
+	
+	
+	nx_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 0)];
+	ny_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 0)];
+	nz_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 0)];
+	
+	ox_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 1)];
+	oy_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 1)];
+	oz_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 1)];
+	
+	ax_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 2)];
+	ay_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 2)];
+	az_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 2)];
+	
+	px_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 0, 3)];
+	py_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 1, 3)];
+	pz_opengl_label.text	= [NSString stringWithFormat:@"%.2f", MatrixElement(openGLModelViewTransform, 2, 3)];
 	
 
 	static float max_acc_x = 0.0;

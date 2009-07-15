@@ -8,7 +8,6 @@
 		<string key="IBDocument.HIToolboxVersion">353.00</string>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="2"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -34,7 +33,7 @@
 			<object class="IBUICustomObject" id="664661524"/>
 			<object class="IBUICustomObject" id="440652528"/>
 			<object class="IBUIWindow" id="380026005">
-				<reference key="NSNextResponder"/>
+				<nil key="NSNextResponder"/>
 				<int key="NSvFlags">1316</int>
 				<object class="NSMutableArray" key="NSSubviews">
 					<bool key="EncodedWithXMLCoder">YES</bool>
@@ -415,7 +414,7 @@
 						<bool key="IBUIOpaque">NO</bool>
 						<bool key="IBUIClipsSubviews">YES</bool>
 						<bool key="IBUIUserInteractionEnabled">NO</bool>
-						<string key="IBUIText">Camera Transform</string>
+						<string key="IBUIText">Modeling Matrix</string>
 						<object class="NSFont" key="IBUIFont" id="808661881">
 							<string key="NSName">HelveticaNeue-Bold</string>
 							<double key="NSSize">1.800000e+01</double>
@@ -711,7 +710,7 @@
 						<bool key="IBUIOpaque">NO</bool>
 						<bool key="IBUIClipsSubviews">YES</bool>
 						<bool key="IBUIUserInteractionEnabled">NO</bool>
-						<string key="IBUIText">Model Transform</string>
+						<string key="IBUIText">OpenGL Model View Matrix</string>
 						<reference key="IBUIFont" ref="808661881"/>
 						<object class="NSColor" key="IBUITextColor">
 							<int key="NSColorSpace">1</int>
@@ -741,7 +740,6 @@
 				</object>
 				<object class="NSPSMatrix" key="NSFrameMatrix"/>
 				<string key="NSFrameSize">{320, 480}</string>
-				<reference key="NSSuperview"/>
 				<object class="NSColor" key="IBUIBackgroundColor">
 					<int key="NSColorSpace">1</int>
 					<bytes key="NSRGB">MSAxIDEAA</bytes>
@@ -852,78 +850,6 @@
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">ax_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="809736835"/>
-					</object>
-					<int key="connectionID">340</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">ay_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="647235193"/>
-					</object>
-					<int key="connectionID">341</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">az_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="1064172772"/>
-					</object>
-					<int key="connectionID">342</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">nx_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="884009542"/>
-					</object>
-					<int key="connectionID">343</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">ny_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="456050196"/>
-					</object>
-					<int key="connectionID">344</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">nz_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="422409950"/>
-					</object>
-					<int key="connectionID">345</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">ox_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="158168061"/>
-					</object>
-					<int key="connectionID">346</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">oy_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="908189817"/>
-					</object>
-					<int key="connectionID">347</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">oz_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="441942297"/>
-					</object>
-					<int key="connectionID">348</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
 						<string key="label">px_label</string>
 						<reference key="source" ref="440652528"/>
 						<reference key="destination" ref="1063390181"/>
@@ -948,30 +874,6 @@
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">px_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="964133800"/>
-					</object>
-					<int key="connectionID">356</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">py_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="705900419"/>
-					</object>
-					<int key="connectionID">357</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
-						<string key="label">pz_model_label</string>
-						<reference key="source" ref="440652528"/>
-						<reference key="destination" ref="792795539"/>
-					</object>
-					<int key="connectionID">358</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBCocoaTouchOutletConnection" key="connection">
 						<string key="label">acc_instantaneous_x_label</string>
 						<reference key="source" ref="440652528"/>
 						<reference key="destination" ref="225074075"/>
@@ -993,6 +895,102 @@
 						<reference key="destination" ref="543037932"/>
 					</object>
 					<int key="connectionID">365</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">nx_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="884009542"/>
+					</object>
+					<int key="connectionID">366</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">ny_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="456050196"/>
+					</object>
+					<int key="connectionID">367</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">nz_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="422409950"/>
+					</object>
+					<int key="connectionID">368</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">ox_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="158168061"/>
+					</object>
+					<int key="connectionID">369</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">oy_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="908189817"/>
+					</object>
+					<int key="connectionID">370</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">oz_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="441942297"/>
+					</object>
+					<int key="connectionID">371</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">ax_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="809736835"/>
+					</object>
+					<int key="connectionID">372</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">ay_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="647235193"/>
+					</object>
+					<int key="connectionID">373</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">az_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="1064172772"/>
+					</object>
+					<int key="connectionID">374</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">px_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="964133800"/>
+					</object>
+					<int key="connectionID">375</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">py_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="705900419"/>
+					</object>
+					<int key="connectionID">376</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBCocoaTouchOutletConnection" key="connection">
+						<string key="label">pz_opengl_label</string>
+						<reference key="source" ref="440652528"/>
+						<reference key="destination" ref="792795539"/>
+					</object>
+					<int key="connectionID">377</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -1396,7 +1394,7 @@
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">365</int>
+			<int key="maxID">377</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -1441,33 +1439,33 @@
 							<string>acc_instantaneous_y_label</string>
 							<string>acc_instantaneous_z_label</string>
 							<string>ax_label</string>
-							<string>ax_model_label</string>
+							<string>ax_opengl_label</string>
 							<string>ay_label</string>
-							<string>ay_model_label</string>
+							<string>ay_opengl_label</string>
 							<string>az_label</string>
-							<string>az_model_label</string>
+							<string>az_opengl_label</string>
 							<string>g_x_label</string>
 							<string>g_y_label</string>
 							<string>g_z_label</string>
 							<string>nx_label</string>
-							<string>nx_model_label</string>
+							<string>nx_opengl_label</string>
 							<string>ny_label</string>
-							<string>ny_model_label</string>
+							<string>ny_opengl_label</string>
 							<string>nz_label</string>
-							<string>nz_model_label</string>
+							<string>nz_opengl_label</string>
 							<string>ox_label</string>
-							<string>ox_model_label</string>
+							<string>ox_opengl_label</string>
 							<string>oy_label</string>
-							<string>oy_model_label</string>
+							<string>oy_opengl_label</string>
 							<string>oz_label</string>
-							<string>oz_model_label</string>
+							<string>oz_opengl_label</string>
 							<string>phi_label</string>
 							<string>px_label</string>
-							<string>px_model_label</string>
+							<string>px_opengl_label</string>
 							<string>py_label</string>
-							<string>py_model_label</string>
+							<string>py_opengl_label</string>
 							<string>pz_label</string>
-							<string>pz_model_label</string>
+							<string>pz_opengl_label</string>
 							<string>rho_label</string>
 							<string>theta_label</string>
 						</object>

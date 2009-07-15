@@ -64,7 +64,7 @@ float m3dDotProductf(M3DVector3f u, M3DVector3f v);
 // Angle between vectors, only for three component vectors. Angle is in radians...
 float m3dGetAngleBetweenVectorsf(M3DVector3f u, M3DVector3f v);
 
-// Get lenght of vector
+// Get length of vector
 float m3dGetVectorLengthf(M3DVector3f u);
 float m3dGetVectorLengthSquaredf(M3DVector3f u);
 
@@ -84,10 +84,14 @@ void TIESpherical(M3DVector3f rectangular, M3DVector3f spherical);
 void TIESphericalXYZ(float x, float y, float z, M3DVector3f spherical);
 	
 void TIERectangular(M3DVector3f spherical, M3DVector3f rectangular);
+	
+// Load Transpose	
+void TIEMatrix4x4LoadTranspose(M3DMatrix44f transposed, M3DMatrix44f src);
 
-// LoadTranslation	
+// Load Translation	
 void TIEMatrix4x4LoadTranslation(M3DMatrix44f matrix, float xTranslate, float yTranslate, float zTranslate);
-
+void TIEMatrix4x4LoadTranslationFromVector(M3DMatrix44f matrix, M3DVector3f translation);
+	
 // Matrix concatenation
 void TIEMatrix4x4Concatenation(M3DMatrix44f m1, M3DMatrix44f m2, M3DMatrix44f result);
 	
